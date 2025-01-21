@@ -10,8 +10,8 @@ import static java.lang.System.exit;
 public class Main {
     public static void main(String[] args) throws IOException {
         ArrayList<String> FileExtension = new ArrayList<>();
-        String WorkingDirectory = "D:\\The Simpsons\\ZZZ - Unsorted"; // Replace with the actual path
-        String EndDirectory = "D:\\The Simpsons\\ZZZ - Unsorted"; // Replace with the actual path
+        String WorkingDirectory = ""; // Replace with the actual path
+        String EndDirectory = ""; // Replace with the actual path
         FileExtension.add(".mkv");
         FileExtension.add(".avi");
         FileExtension.add(".mp4");
