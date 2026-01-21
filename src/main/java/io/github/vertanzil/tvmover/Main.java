@@ -1,34 +1,52 @@
 package io.github.vertanzil.tvmover;
 
+import io.github.vertanzil.tvmover.other.LoggerConfig;
+import io.github.vertanzil.tvmover.other.CommandMenu;
+import io.github.vertanzil.tvmover.other.ScanResult;
 
 import io.github.vertanzil.tvmover.operations.FileScanner;
-import io.github.vertanzil.tvmover.other.CommandMenu;
-import io.github.vertanzil.tvmover.other.LoggerConfig;
-import io.github.vertanzil.tvmover.other.ScanResult;
+import io.github.vertanzil.tvmover.operations.EpisodeParser;
+import io.github.vertanzil.tvmover.operations.FileRenamer;
+
+import io.github.vertanzil.tvmover.config.Config;
+import io.github.vertanzil.tvmover.config.ConfigLoader;
 
 import java.io.File;
 import java.util.ArrayList;
-    public class Main {
 
-        public static void main(String[] args) {
+public class Main {
 
-            LoggerConfig.setup();
+    public static void main(String[] args) {
 
-            ArrayList<String> extensions = new ArrayList<>();
-            extensions.add(".mkv");
-            extensions.add(".avi");
-            extensions.add(".mp4");
+        // Setup logging
+        LoggerConfig.setup();
 
-            String workingDirectory = "d:\\test";
-            String endDirectory = "d:\\test\\complete";
+        // Load config.json
+        Config config = ConfigLoader.load("config.json");
 
-            File start = new File(workingDirectory);
-            File end = new File(endDirectory);
+        File start = new File(config.getSource());
+        File end = new File(config.getDestination());
+        ArrayList<String> extensions = new ArrayList<>(config.getExtensions());
 
-            FileScanner scanner = new FileScanner();
-            ScanResult result = scanner.scan(start, end, extensions);
+        // Core components
+        FileScanner scanner = new FileScanner();
+        EpisodeParser parser = new EpisodeParser();
+        FileRenamer renamer = new FileRenamer();
 
-            CommandMenu menu = new CommandMenu(scanner, result, start, end, extensions);
-            menu.run();
-        }
+        // Initial scan
+        ScanResult result = scanner.scan(start, end, extensions);
+
+        // Launch menu
+        CommandMenu menu = new CommandMenu(
+                scanner,
+                parser,
+                renamer,
+                result,
+                start,
+                end,
+                extensions
+        );
+
+        menu.run();
     }
+}

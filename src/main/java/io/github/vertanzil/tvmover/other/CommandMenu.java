@@ -1,8 +1,6 @@
 package io.github.vertanzil.tvmover.other;
 
-import io.github.vertanzil.tvmover.operations.FileDeleter;
-import io.github.vertanzil.tvmover.operations.FileMover;
-import io.github.vertanzil.tvmover.operations.FileScanner;
+import io.github.vertanzil.tvmover.operations.*;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -11,6 +9,10 @@ import java.util.Scanner;
 public class CommandMenu {
 
     private final FileScanner scanner;
+    private final EpisodeParser parser;
+    private final FileRenamer renamer;
+    private final FolderOrganizer organizer;
+
     private ScanResult result;
     private final File start;
     private final File endDirectory;
@@ -20,12 +22,18 @@ public class CommandMenu {
     private final FileDeleter deleter = new FileDeleter();
 
     public CommandMenu(FileScanner scanner,
+                       EpisodeParser parser,
+                       FileRenamer renamer,
                        ScanResult result,
                        File start,
                        File endDirectory,
                        ArrayList<String> extensions) {
 
         this.scanner = scanner;
+        this.parser = parser;
+        this.renamer = renamer;
+        this.organizer = new FolderOrganizer();
+
         this.result = result;
         this.start = start;
         this.endDirectory = endDirectory;
@@ -59,16 +67,17 @@ public class CommandMenu {
                 case "n" -> result.getNotMatching().forEach(f -> System.out.println(f.getAbsolutePath()));
 
                 case "dm" -> {
-                    mover.moveFiles(result.getMatching(), endDirectory, true);
+                    System.out.println("=== DRY RUN: Organise + Move ===");
+                    dryRunOrganiseAndMove();
                     System.out.print("Run move for real? (yes/no): ");
                     if (scannerInput.nextLine().equalsIgnoreCase("yes")) {
-                        mover.moveFiles(result.getMatching(), endDirectory, false);
+                        organiseAndMove(false);
                     } else {
                         System.out.println("Move cancelled.");
                     }
                 }
 
-                case "mv" -> mover.moveFiles(result.getMatching(), endDirectory, false);
+                case "mv" -> organiseAndMove(false);
 
                 case "dd" -> {
                     deleter.deleteFiles(result.getNotMatching(), true);
@@ -104,11 +113,68 @@ public class CommandMenu {
         System.out.println("[s]   Stats");
         System.out.println("[m]   Show matching files");
         System.out.println("[n]   Show non-matching files");
-        System.out.println("[dm]  Dry-run move");
-        System.out.println("[mv]  Move files");
+        System.out.println("[dm]  Dry-run organise + move");
+        System.out.println("[mv]  Organise + move files");
         System.out.println("[dd]  Dry-run delete");
         System.out.println("[del] Delete files");
         System.out.println("[r]   Reload scan");
         System.out.println("[q]   Quit");
+    }
+
+    // ------------------------------------------------------------
+    // DRY RUN ORGANISE + MOVE
+    // ------------------------------------------------------------
+    private void dryRunOrganiseAndMove() {
+        for (File file : result.getMatching()) {
+
+            EpisodeInfo info = parser.parse(file);
+            if (info == null) {
+                System.out.println("[SKIP] Could not parse: " + file.getName());
+                continue;
+            }
+
+            File renamed = renamer.renameTemp(file, info);
+            File destFolder = organizer.getDestinationFolder(endDirectory, info);
+            File finalDest = new File(destFolder, renamed.getName());
+
+            System.out.println("[DRY RUN]");
+            System.out.println("  File: " + file.getName());
+            System.out.println("  Parsed: " + info.getShowName() + " S" + info.getSeason() + "E" + info.getEpisodes());
+            System.out.println("  New Name: " + renamed.getName());
+            System.out.println("  Destination: " + finalDest.getAbsolutePath());
+        }
+    }
+
+    // ------------------------------------------------------------
+    // REAL ORGANISE + MOVE
+    // ------------------------------------------------------------
+    private void organiseAndMove(boolean dryRun) {
+
+        for (File file : result.getMatching()) {
+
+            EpisodeInfo info = parser.parse(file);
+            if (info == null) {
+                System.out.println("[SKIP] Could not parse: " + file.getName());
+                continue;
+            }
+
+            File renamed = renamer.renameTemp(file, info);
+            File destFolder = organizer.getDestinationFolder(endDirectory, info);
+            File finalDest = new File(destFolder, renamed.getName());
+
+            if (dryRun) {
+                System.out.println("[DRY RUN] Would move:");
+                System.out.println("  From: " + file.getAbsolutePath());
+                System.out.println("  To:   " + finalDest.getAbsolutePath());
+                continue;
+            }
+
+            // First rename locally
+            File renamedTemp = new File(file.getParent(), renamed.getName());
+            file.renameTo(renamedTemp);
+
+            // Then move to final folder
+            mover.moveFiles(new ArrayList<>(java.util.List.of(renamedTemp)), destFolder, false);
+        }
     }
 }
