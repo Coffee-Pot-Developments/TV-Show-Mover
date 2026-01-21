@@ -22,7 +22,7 @@ public class Main {
         LoggerConfig.setup();
 
         // Load config.json
-        Config config = ConfigLoader.load("config.json");
+        Config config = ConfigLoader.load("src/config.json");
 
         File start = new File(config.getSource());
         File end = new File(config.getDestination());
